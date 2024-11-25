@@ -1,61 +1,50 @@
 from ursina import *
-from ursina.prefabs.first_person_controller import FirstPersonController
 
 # Ursina-Anwendung starten
 app = Ursina()
 
-# Konstanten
-g = 9.81  # Gravitationskonstante in m/s²
-m = 0.02  # Masse des Balls in kg
-
-# Eine Ebene (Plane) mit einer Höhe von 1 erstellen
-plane = Entity(
+# Spieler erstellen
+player = Entity(
     model='cube',
-    color=color.white,
-    scale=(10, 0.5, 10),  # (Breite, Höhe, Tiefe)
-    position=(0, 0, 0),
-    collider='box'
+    color=color.orange,
+    scale=(1, 2, 1),  # Spielergröße
+    position=(0, 1, 0),
+    collider = 'box'
 )
 
-# Ball erstellen
-ball = Entity(
-    model='sphere',
+# Wand erstellen
+wall = Entity(
+    model='cube',
     color=color.red,
-    scale=1,  # Durchmesser des Balls
-    position=(0, 2, 0),  # Startposition des Balls
-    collider='sphere'
+    scale=(3, 3, 0.5),  # Größe der Wand
+    position=(3, 1.5, 0),  # Position der Wand
+    collider='box'  # Collider für die Kollision
 )
 
-# Variablen für die Ballphysik
-ball_velocity = Vec3(0, 0, 0)  # Ballgeschwindigkeit (x, y, z)
-ball_gravity = Vec3(0, -g, 0)  # Gravitationskraft auf den Ball (nur in y-Richtung)
+# Raycast-Visualisierung (optional)
+ray_visual = Entity(model='cube', color=color.green, scale=(0.1, 0.1, 1), visible=False)
 
 def update():
-    global ball_velocity
+    # Raycast von der Position des Spielers in die Blickrichtung
+    hit_info = raycast(player.position, player.forward, ignore=[player], distance=5, debug=True)
 
-    # Gravitationskraft anwenden
-    ball_velocity += ball_gravity * time.dt  # Beschleunigung durch Gravitation
+    # Überprüfen, ob der Raycast etwas trifft
+    if hit_info.hit:
+        # Ausgabe der getroffenen Entität und Position
+        print(f"Getroffen: {hit_info.entity}, Position: {hit_info.world_point}")
+        
+        # Sichtbare Markierung für die Kollision (optional)
+        ray_visual.position = hit_info.world_point
+        ray_visual.visible = True
+    else:
+        ray_visual.visible = False  # Markierung ausblenden, wenn nichts getroffen wurde
 
-    # Ballposition basierend auf der Geschwindigkeit aktualisieren
-    ball.position += ball_velocity * time.dt
-
-    direction = Vec3(
-    forward * (held_keys['w'] - held_keys['s'])
-    + self.right * (held_keys['d'] - held_keys['a'])
-    ).normalized()  # get the direction we're trying to walk in.
-
-    origin = self.world_position + (self.up*.5) # the ray should start slightly up from the ground so we can walk up slopes or walk over small objects.
-    hit_info = raycast(origin , self.direction, ignore=(self,), distance=.5, debug=False)
-    if not hit_info.hit:
-        self.position += self.direction * 5 * time.dt
-
-
-# First-Person-Steuerung
-player = FirstPersonController()
-player.gravity = 0  # Gravitation für den Spieler deaktivieren
-player.speed = 10
-player.position = (0, 1, -10)
-player.look_at(ball)
+    # Spieler mit WASD bewegen
+    player.position += Vec3(
+        held_keys['d'] - held_keys['a'],  # Seitwärtsbewegung
+        0,                               # Keine Bewegung in Y-Richtung
+        held_keys['w'] - held_keys['s']  # Vorwärts-/Rückwärtsbewegung
+    ) * time.dt * 5
 
 # Ursina-Anwendung ausführen
 app.run()

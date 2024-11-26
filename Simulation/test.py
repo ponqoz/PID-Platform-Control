@@ -1,50 +1,102 @@
 from ursina import *
+from ursina.prefabs.first_person_controller import FirstPersonController
+import math
+import numpy as np
 
-# Ursina-Anwendung starten
 app = Ursina()
 
-# Spieler erstellen
-player = Entity(
-    model='cube',
-    color=color.orange,
-    scale=(1, 2, 1),  # Spielergröße
-    position=(0, 1, 0),
-    collider = 'box'
-)
+# Erstelle einen Würfel
+cube = Entity(model='cube', position=(0, 0, 0), rotation=(0, 0, 0))
 
-# Wand erstellen
-wall = Entity(
-    model='cube',
-    color=color.red,
-    scale=(3, 3, 0.5),  # Größe der Wand
-    position=(3, 1.5, 0),  # Position der Wand
-    collider='box'  # Collider für die Kollision
-)
+# Erstelle den Normal-Vektor
+origin = Vec3(0, 0, 0)
+normal_vector = Vec3(0, 1, 0)
+line = Entity(model=Mesh(vertices=[origin, normal_vector], mode='line', thickness=2), color=color.red)
+"""
+def update():
+    # Winkel in Grad holen
+    theta_x = math.radians(cube.rotation_x_getter())
+    theta_z = math.radians(cube.rotation_z_getter())
+    print(theta_x, theta_z)
+    
+    # Berechnung des Normalvektors
+    normal_vector = Vec3(
+         math.sin(theta_x),  # x-Komponente
+         math.cos(theta_x),  # y-Komponente
+         math.sin(theta_z)   # z-Komponente
+    )
+    
+    # Aktualisiere die Linie
+    line.model.vertices[1] = normal_vector
+    line.model.generate()
 
-# Raycast-Visualisierung (optional)
-ray_visual = Entity(model='cube', color=color.green, scale=(0.1, 0.1, 1), visible=False)
+    # Würfelrotation
+    cube.rotation += (0.5, 0, 0)
+
+"""
 
 def update():
-    # Raycast von der Position des Spielers in die Blickrichtung
-    hit_info = raycast(player.position, player.forward, ignore=[player], distance=5, debug=True)
+    # Winkel in Grad
+    #phi = cube.rotation_z_getter()  # Drehwinkel um die Z-Achse
+    #psi = cube.rotation_y_getter()    # Drehwinkel um die Y-Achse
+    #theta = cube.rotation_x_getter()    # Drehwinkel um die X-Achse
 
-    # Überprüfen, ob der Raycast etwas trifft
-    if hit_info.hit:
-        # Ausgabe der getroffenen Entität und Position
-        print(f"Getroffen: {hit_info.entity}, Position: {hit_info.world_point}")
+    # Winkel in Grad
+    psi = -cube.rotation_z_getter()
+    print(psi)  # Drehwinkel um die Z-Achse
+    phi = cube.rotation_y_getter()
+    print(phi)    # Drehwinkel um die Y-Achse
+    theta = cube.rotation_x_getter()
+    print(theta)    # Drehwinkel um die X-Achse
+
+    # Umwandlung der Winkel in Bogenmaß
+    theta_rad = math.radians(theta)
+    phi_rad = math.radians(phi)
+    psi_rad = math.radians(psi)
+
+    # Vektor (0, 1, 0)
+    v = np.array([0, 1, 0])
+
+    # Gegebene Matrix (kombinierte Drehmatrix)
+    R = np.array([
+        [math.cos(psi_rad) * math.cos(phi_rad) - math.cos(theta_rad) * math.sin(phi_rad) * math.sin(psi_rad),
+        -math.sin(psi_rad) * math.cos(phi_rad) - math.cos(theta_rad) * math.sin(phi_rad) * math.cos(psi_rad),
+        math.sin(theta_rad) * math.sin(phi_rad)],
         
-        # Sichtbare Markierung für die Kollision (optional)
-        ray_visual.position = hit_info.world_point
-        ray_visual.visible = True
-    else:
-        ray_visual.visible = False  # Markierung ausblenden, wenn nichts getroffen wurde
+        [math.cos(psi_rad) * math.sin(phi_rad) + math.cos(theta_rad) * math.cos(phi_rad) * math.sin(psi_rad),
+        -math.sin(psi_rad) * math.sin(phi_rad) + math.cos(theta_rad) * math.cos(phi_rad) * math.cos(psi_rad),
+        -math.sin(theta_rad) * math.cos(phi_rad)],
+        
+        [math.sin(psi_rad) * math.sin(theta_rad),
+        math.cos(psi_rad) * math.sin(theta_rad),
+        math.cos(theta_rad)]
+    ])
 
-    # Spieler mit WASD bewegen
-    player.position += Vec3(
-        held_keys['d'] - held_keys['a'],  # Seitwärtsbewegung
-        0,                               # Keine Bewegung in Y-Richtung
-        held_keys['w'] - held_keys['s']  # Vorwärts-/Rückwärtsbewegung
-    ) * time.dt * 5
+    # Matrix-Vektor-Multiplikation
+    v_prime = np.dot(R, v)
+    
+    # Berechnung des Normalvektors
+    normal_vector = Vec3(
+         v_prime[0],  # x-Komponente
+         v_prime[1],  # y-Komponente
+         v_prime[2]   # z-Komponente
+    )
+    # Aktualisiere die Linie
+    line.model.vertices[1] = normal_vector
+    line.model.generate()
 
-# Ursina-Anwendung ausführen
+    # Würfelrotation
+    cube.rotation += (0, 0.5, 0)
+    #time.sleep(0.5)
+
+
+
+    #print("Normalvektor:", v_prime)
+
+# First-Person-Steuerung
+player = FirstPersonController()
+player.gravity = 0  # Gravitation für den Spieler deaktivieren
+player.speed = 10
+player.position = (0, 1, -10)
+
 app.run()
